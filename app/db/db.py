@@ -1,5 +1,6 @@
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import declarative_base,sessionmaker
+
 from app.utils.settings import settings
 
 Base = declarative_base()
@@ -21,5 +22,5 @@ def get_db():
     session = local_session()
     try:
         yield session
-    except:
+    finally:
         session.close()

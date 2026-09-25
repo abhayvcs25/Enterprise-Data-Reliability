@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from controller.v1.health import health_check
+from app.controller.v1.health import health_check
 
 
 
