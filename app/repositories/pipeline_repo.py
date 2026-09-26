@@ -23,3 +23,6 @@ class PipelineRepository:
 
     def get_all(self):
         return self.db.query(PipelinesModel).all()
+
+    def get_by_id(self,pipe_id: int):
+        return self.db.query(PipelinesModel).filter(PipelinesModel.id == pipe_id).first()
