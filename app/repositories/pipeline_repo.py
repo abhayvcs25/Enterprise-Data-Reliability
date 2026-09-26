@@ -39,6 +39,14 @@ class PipelineRepository:
 
         self.db.commit()
         self.db.refresh(pipeline)
-
         return pipeline
-    
+
+    def delete_pipeline(self,pipe_id: int):
+        pipeline = self.db.query(PipelinesModel).filter(PipelinesModel.id == pipe_id).first()
+
+        if pipeline is None:
+            return None
+
+        self.db.delete(pipeline)
+        self.db.commit()
+        return pipeline

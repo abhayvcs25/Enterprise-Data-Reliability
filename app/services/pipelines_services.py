@@ -28,3 +28,12 @@ class PipelineService:
             raise HTTPException(status_code= 404,detail="pipeline not found")
 
         return pipeline
+
+    def delete_pipeline_by_id(self,pipe_id: int):
+            pipeline = self.repository.delete_pipeline(pipe_id)
+    
+            if pipeline is None:
+                raise HTTPException(status_code= 404,detail="pipeline not found")
+    
+            return pipeline
+    

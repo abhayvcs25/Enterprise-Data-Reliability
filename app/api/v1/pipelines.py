@@ -31,6 +31,6 @@ def Pipeline_post(data:PipelineCreate,service:PipelineService = Depends(get_pipe
 def Pipeline_update(id:int,data:PipelineUpdate,service:PipelineService = Depends(get_pipeline_service)):
     return service.update_pipeline_by_id(id,data)
 
-@Pipeline_Router.delete("/pipelines/{id}")
-def Pipeline_delete(id:int):
-    pass
+@Pipeline_Router.delete("/pipelines/{id}",response_model=PipelineResponse)
+def Pipeline_delete(id:int,service: PipelineService = Depends(get_pipeline_service)):
+    return service.delete_pipeline_by_id(id)
