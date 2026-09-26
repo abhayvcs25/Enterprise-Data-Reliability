@@ -19,3 +19,7 @@ class PipelineRepository:
         self.db.commit()
         self.db.refresh(pipeline)
         return pipeline
+
+
+    def get_all(self):
+        return self.db.query(PipelinesModel).all()

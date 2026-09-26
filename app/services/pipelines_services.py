@@ -9,3 +9,6 @@ class PipelineService:
 
     def create_pipeline(self,data:PipelineCreate):
         return self.repository.create(data)
+
+    def get_all_pipelines(self):
+        return self.repository.get_all()
