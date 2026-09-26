@@ -17,3 +17,9 @@ class PipelineResponse(BaseModel):
     updated_at : datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class PipelineUpdate(BaseModel):
+    name : str
+    description : str | None = None
+    status : PipelineStatus

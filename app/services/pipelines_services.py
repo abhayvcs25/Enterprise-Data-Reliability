@@ -1,6 +1,6 @@
 # from db.db import get_db
 # from models.pipelines import PipelinesModel
-from app.schemas.PipelinesDto import PipelineCreate
+from app.schemas.PipelinesDto import PipelineCreate,PipelineUpdate
 from app.repositories.pipeline_repo import PipelineRepository
 from fastapi import HTTPException
 class PipelineService:
@@ -18,5 +18,13 @@ class PipelineService:
 
         if pipeline is None:
             raise HTTPException(status_code=404,detail="pipeline not found")
+
+        return pipeline
+
+    def update_pipeline_by_id(self,pipe_id: int, body: PipelineUpdate):
+        pipeline = self.repository.update_pipeline(pipe_id,body)
+
+        if pipeline is None:
+            raise HTTPException(status_code= 404,detail="pipeline not found")
 
         return pipeline

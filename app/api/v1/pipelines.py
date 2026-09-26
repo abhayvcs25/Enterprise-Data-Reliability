@@ -1,5 +1,5 @@
 from fastapi import APIRouter,Depends
-from app.schemas.PipelinesDto import PipelineCreate,PipelineResponse
+from app.schemas.PipelinesDto import PipelineCreate,PipelineResponse,PipelineUpdate
 from app.services.pipelines_services import PipelineService
 from app.repositories.pipeline_repo import PipelineRepository
 from sqlalchemy.orm import Session
@@ -27,9 +27,9 @@ def Pipeline_get_by_id(pipe_id: int, service : PipelineService = Depends(get_pip
 def Pipeline_post(data:PipelineCreate,service:PipelineService = Depends(get_pipeline_service)):
     return service.create_pipeline(data)
 
-@Pipeline_Router.put("/pipelines/{id}")
-def Pipeline_update(id:int):
-    pass
+@Pipeline_Router.put("/pipelines/{id}",response_model=PipelineResponse)
+def Pipeline_update(id:int,data:PipelineUpdate,service:PipelineService = Depends(get_pipeline_service)):
+    return service.update_pipeline_by_id(id,data)
 
 @Pipeline_Router.delete("/pipelines/{id}")
 def Pipeline_delete(id:int):
