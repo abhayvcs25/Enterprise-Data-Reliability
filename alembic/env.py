@@ -7,6 +7,7 @@ from app.db.db import Base
 from app.utils.settings import settings
 from app.models.employee import EmployeeModel
 from app.models.pipelines import PipelinesModel
+from app.models.pipelinerun import PipelineRunModel
 
 from alembic import context
 

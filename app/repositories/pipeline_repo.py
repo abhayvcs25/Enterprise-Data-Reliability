@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from app.models.pipelines import PipelinesModel
-from app.schemas.PipelinesDto import PipelineCreate,PipelineUpdate
+from app.schemas.PipelinesDto import PipelineCreate,PipelineUpdate,PipelineStatus
 
 
 
@@ -50,3 +50,24 @@ class PipelineRepository:
         self.db.delete(pipeline)
         self.db.commit()
         return pipeline
+
+    def update_pipeline_status(
+            self,
+            pipe_id: int,
+            status: PipelineStatus
+        ):
+            pipeline = (
+                self.db.query(PipelinesModel)
+                .filter(PipelinesModel.id == pipe_id)
+                .first()
+            )
+
+            if pipeline is None:
+                return None
+
+            pipeline.status = status
+
+            self.db.commit()
+            self.db.refresh(pipeline)
+
+            return pipeline
