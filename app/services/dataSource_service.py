@@ -1,0 +1,43 @@
+from fastapi import HTTPException
+from app.repositories.dataSource_repo import DataSourceRepo
+from app.schemas.datasourceDto import DataSourceUpdate,DataSourceCreate
+
+class DataSourceServices:
+    def __init__(self,data_repo:DataSourceRepo):
+        self.data_repo = data_repo
+
+    def create_data_source(self,data:DataSourceCreate):
+        return self.data_repo.create_dataSource(data)
+
+    def get_all_data_source(self):
+        return self.data_repo.get_all()
+
+    def get_data_source_by_id(self,data_s_id:int):
+        data = self.data_repo.get_by_id(data_s_id)
+
+        if data is None:
+            raise HTTPException(status_code=404,detail="data source id not found")
+
+        return data
+
+    def update_data_source(self,data_s_id:int,Update_data:DataSourceUpdate):
+        data_source = self.data_repo.get_by_id(data_s_id)
+
+        if data_source is None:
+            raise HTTPException(status_code=404,detail="data source id not found")
+
+        return self.data_repo.update(data_source,Update_data)
+
+    def delete_data_source(self,data_s_id:int):
+        data_source = self.data_repo.get_by_id(data_s_id)
+
+        if data_source is None:
+            raise HTTPException(status_code=404,detail="data source id not found")
+
+        self.data_repo.delete(data_source)
+
+        return {
+            "message":"DataSource deleted successfully"
+        }
+
+    

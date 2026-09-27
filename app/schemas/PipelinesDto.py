@@ -20,6 +20,6 @@ class PipelineResponse(BaseModel):
 
 
 class PipelineUpdate(BaseModel):
-    name : str
+    name : str | None = None
     description : str | None = None
     status : PipelineStatus

@@ -1,6 +1,5 @@
 from sqlalchemy.orm import Session
 from app.models.pipelinerun import PipelineRunModel
-from app.schemas.PipelineRunDto import PipelineRunCreate,PipelineRunResponse
 from app.schemas.PipelinesDto import PipelineStatus
 
 class PipelineRunRepositroy:

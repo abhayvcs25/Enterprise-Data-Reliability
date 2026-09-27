@@ -8,6 +8,7 @@ from app.utils.settings import settings
 from app.models.employee import EmployeeModel
 from app.models.pipelines import PipelinesModel
 from app.models.pipelinerun import PipelineRunModel
+from app.models.data_source import DataSourceType,DataSourceModel
 
 from alembic import context
 

@@ -3,6 +3,7 @@ from fastapi import FastAPI
 
 from app.api.v1.health import health_router
 from app.api.v1.pipelines import Pipeline_Router
+from app.api.v1.dataSource import DataSource_Router
 
 # from db.db import Base,engine
 
@@ -12,3 +13,4 @@ app=FastAPI()
 
 app.include_router(health_router,prefix="/api/v1")
 app.include_router(Pipeline_Router,prefix="/api/v1")
+app.include_router(DataSource_Router,prefix="/api/v1/datasource")
