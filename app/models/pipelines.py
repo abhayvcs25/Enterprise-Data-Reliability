@@ -27,3 +27,9 @@ class PipelinesModel(Base):
     updated_at = Column(DateTime,server_default=func.now(),onupdate=func.now(),nullable=False)
 
     runs = relationship("PipelineRunModel",back_populates="pipeline")
+    
+    data_source_connections = relationship(
+        "PipelineDataSourceModel",
+        back_populates="pipeline",
+        cascade="all, delete-orphan"
+    )

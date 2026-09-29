@@ -1,6 +1,7 @@
 from app.db.db import Base
 from sqlalchemy import Column,Integer,String,ForeignKey,DateTime,Text,Enum,func,JSON
 import enum
+from sqlalchemy.orm import relationship
 
 
 class DataSourceType(str,enum.Enum):
@@ -26,4 +27,9 @@ class DataSourceModel(Base):
     configuration = Column(JSON,nullable=True)
     create_at = Column(DateTime,server_default=func.now(),nullable=False)
     updated_at = Column(DateTime,server_default=func.now(),onupdate=func.now(),nullable=False)
-
+    
+    pipeline_connections = relationship(
+        "PipelineDataSourceModel",
+        back_populates="data_source",
+        cascade="all, delete-orphan"
+    )
