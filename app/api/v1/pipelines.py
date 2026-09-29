@@ -29,42 +29,58 @@ def get_pipeline_execution_service(
         pipeline_run_repository
     )
 
+##these are the apis to CURD oprations for piplines
 
+#this is to get all pipelines 
 @Pipeline_Router.get("/pipelines",response_model=List[PipelineResponse])
 def Pipelines_get(service:PipelineService = Depends(get_pipeline_service)):
     return service.get_all_pipelines()
 
-@Pipeline_Router.get("/pipeline-runs",response_model=List[PipelineRunResponse])
-def get_runs(service:PipelineExecutionService = Depends(get_pipeline_execution_service)):
-    return service.get_all_run()
-
+#this is to 1 pipeline
 @Pipeline_Router.get("/pipelines/{pipe_id}",response_model=PipelineResponse)
 def Pipeline_get_by_id(pipe_id: int, service : PipelineService = Depends(get_pipeline_service)):
     return service.get_pipeline_by_id(pipe_id)
 
+# this is to create a pipeline
 @Pipeline_Router.post("/pipelines",response_model=PipelineResponse)
 def Pipeline_post(data:PipelineCreate,service:PipelineService = Depends(get_pipeline_service)):
     return service.create_pipeline(data)
 
+# this is to update a pipeline
 @Pipeline_Router.put("/pipelines/{id}",response_model=PipelineResponse)
 def Pipeline_update(id:int,data:PipelineUpdate,service:PipelineService = Depends(get_pipeline_service)):
     return service.update_pipeline_by_id(id,data)
 
+# this to delete a pipeline
 @Pipeline_Router.delete("/pipelines/{id}",response_model=PipelineResponse)
 def Pipeline_delete(id:int,service: PipelineService = Depends(get_pipeline_service)):
     return service.delete_pipeline_by_id(id)
 
+
+
+### these are the apis to runs the pipelines
+
+#this is to make the run 
 @Pipeline_Router.post("/pipelines/{pipeline_id}/run",response_model=PipelineRunResponse)
 def Create_Pipeline_Run(pipeline_id:int,service:PipelineExecutionService = Depends(get_pipeline_execution_service)):
     return service.run_pipeline(pipeline_id)
 
+
+# this is to get runs of a list of pipeline id
 @Pipeline_Router.get("/pipelines/{pipeline_id}/runs",response_model=List[PipelineRunResponse])
 def Get_pipeline_runs(pipeline_id:int,service: PipelineExecutionService = Depends(get_pipeline_execution_service)):
     return service.get_pipeline_runs(pipeline_id)
 
+# this is to get run a specific run
 @Pipeline_Router.get("/pipeline-runs/{run_id}",response_model=PipelineRunResponse)
 def Get_runs_byid(run_id:int,service: PipelineExecutionService = Depends(get_pipeline_execution_service)):
     return service.get_run(run_id)
+
+# this is to get all runs
+@Pipeline_Router.get("/pipeline-runs",response_model=List[PipelineRunResponse])
+def get_runs(service:PipelineExecutionService = Depends(get_pipeline_execution_service)):
+    return service.get_all_run()
+
 
 
 # POST /api/v1/pipelines/{pipeline_id}/run
