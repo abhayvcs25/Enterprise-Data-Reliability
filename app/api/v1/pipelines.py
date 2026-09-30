@@ -1,12 +1,19 @@
 from fastapi import APIRouter,Depends
+
 from app.schemas.PipelinesDto import PipelineCreate,PipelineResponse,PipelineUpdate
 from app.schemas.PipelineRunDto import PipelineRunResponse
+
 from app.services.pipelines_services import PipelineService
 from app.services.pipelineRun_services import PipelineExecutionService
+
 from app.repositories.pipeline_repo import PipelineRepository
 from app.repositories.pipelineRun_repo import PipelineRunRepositroy
-from sqlalchemy.orm import Session
+from app.repositories.pipe_data_repo import PipeDataRepo
+from app.repositories.dataSource_repo import DataSourceRepo
+
 from app.db.db import get_db
+
+from sqlalchemy.orm import Session
 from typing import List
 
 Pipeline_Router = APIRouter()
@@ -27,6 +34,23 @@ def get_pipeline_execution_service(
     return PipelineExecutionService(
         pipeline_repository,
         pipeline_run_repository
+    )
+
+
+
+def get_pipeline_execution_service(
+    db: Session = Depends(get_db)
+) -> PipelineExecutionService:
+
+    pipeline_repository = PipelineRepository(db)
+    pipeline_run_repository = PipelineRunRepositroy(db)
+    datasource_repository = DataSourceRepo(db=db)
+    pipe_data_repo = PipeDataRepo(db=db)
+    return PipelineExecutionService(
+        pipeline_repository,
+        pipeline_run_repository,
+        datasource_repository,
+        pipe_data_repo
     )
 
 ##these are the apis to CURD oprations for piplines
@@ -61,7 +85,7 @@ def Pipeline_delete(id:int,service: PipelineService = Depends(get_pipeline_servi
 ### these are the apis to runs the pipelines
 
 #this is to make the run 
-@Pipeline_Router.post("/pipelines/{pipeline_id}/run",response_model=PipelineRunResponse)
+@Pipeline_Router.post("/pipelines/{pipeline_id}/run")
 def Create_Pipeline_Run(pipeline_id:int,service:PipelineExecutionService = Depends(get_pipeline_execution_service)):
     return service.run_pipeline(pipeline_id)
 

@@ -4,6 +4,7 @@ from app.schemas.datasourceDto import DataSourceUpdate,DataSourceCreate
 from app.ingestion.csv_ingestion import CsvIngestion
 from app.models.data_source import DataSourceType
 
+
 class DataSourceServices:
     def __init__(self,data_repo:DataSourceRepo):
         self.data_repo = data_repo
@@ -22,13 +23,13 @@ class DataSourceServices:
 
         return data
 
-    def update_data_source(self,data_s_id:int,Update_data:DataSourceUpdate):
+    def update_data_source(self,data_s_id:int,update_data:DataSourceUpdate):
         data_source = self.data_repo.get_by_id(data_s_id)
 
         if data_source is None:
             raise HTTPException(status_code=404,detail="data source id not found")
 
-        return self.data_repo.update(data_source,Update_data)
+        return self.data_repo.update(data_source,update_data)
 
     def delete_data_source(self,data_s_id:int):
         data_source = self.data_repo.get_by_id(data_s_id)
@@ -53,4 +54,4 @@ class DataSourceServices:
             ingestor = CsvIngestion(data_source.location)
             return ingestor.ingest()
 
-        return {"error":"there is error recived at datasource service"}
+        raise HTTPException(status_code=400,detail=f"Unsupported datasource type: {data_source.source_type}")

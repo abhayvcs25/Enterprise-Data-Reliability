@@ -9,10 +9,9 @@ from app.db.db import get_db
 from typing import List
 from sqlalchemy.orm import Session
 
-
 DataSource_Router = APIRouter()
 
-# for adding the sessin to the repo class
+# for adding the session to the repo class
 def get_dataSource_services(db: Session = Depends(get_db)) -> DataSourceServices:
     data_repo = DataSourceRepo(db)
     return DataSourceServices(data_repo)

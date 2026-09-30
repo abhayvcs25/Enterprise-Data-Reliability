@@ -2,7 +2,7 @@ from sqlalchemy import Column,Integer,ForeignKey
 from app.db.db import Base
 from sqlalchemy.orm import relationship
 
-class Pipline_DataSource_Model(Base):
+class PipelineDataSourceModel(Base):
     __tablename__ = "Pipline_DataSource"
 
     id = Column(Integer,primary_key=True,index=True)
