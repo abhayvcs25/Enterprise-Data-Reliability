@@ -1,5 +1,6 @@
 import pandas as pd
 import os
+from app.ingestion.ingestion_result import IngestionResults
 
 class CsvIngestion:
     def __init__(self,file_path:str):
@@ -12,15 +13,24 @@ class CsvIngestion:
         try:
             data_csv=pd.read_csv(self.file_path)
         except Exception as e:
-            raise CsvIngestion(f"Failed to read the file : {self.file_path}") from e
+            raise RuntimeError(f"Failed to read the file : {self.file_path}") from e
 
         data=pd.DataFrame(data_csv)
 
-        return {
-            "success":True,
-            "file_path": self.file_path,
-            "rows":int(len(data)),
-            "columns": int(len(data.columns)),
-            "columns_name":list(data.columns),
-            "dataframe": data.head().to_dict(orient="records")
-        }
+        preview = data.head().to_dict(orient="records")
+
+        preview = [
+            {
+                key: value.item() if hasattr(value, "item") else value
+                for key, value in row.items()
+            }
+            for row in preview
+        ]
+
+        return IngestionResults(
+            dataframe=data,
+            row_count= int(len(data)),
+            column_name= data.columns.to_list(),
+            head= preview,
+            dtypes= data.dtypes.astype(str).to_dict()
+        )
