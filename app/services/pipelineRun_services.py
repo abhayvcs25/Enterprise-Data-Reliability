@@ -12,7 +12,7 @@ from app.storage.parquet_storage import ParquetStorage
 from app.models.pipelines import PipelineStatus
 from app.models.data_source import DataSourceType
 
-from fastapi import HTTPException
+from fastapi import HTTPException,status
 from datetime import datetime
 
 
@@ -24,45 +24,64 @@ class PipelineExecutionService:
         self.datasource_repo = datasource_repo
         self.pipe_data_repo = pipe_data_repo
 
-    def run_pipeline(self,pipe_id:int):
 
+    def run_pipeline(self, pipe_id: int):
+        # 1. Pipeline verification
         pipeline = self.pipe_repo.get_by_id(pipe_id)
         if pipeline is None:
-            raise HTTPException(status_code=404,detail="pipeline id not found")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="pipeline id not found")
 
         if pipeline.status == PipelineStatus.RUNNING:
             raise HTTPException(
-                status_code=400,
+                status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Pipeline is already running"
             )
 
-        run = self.pipe_run_repo.create_run(pipeline_id = pipeline.id,status = PipelineStatus.PENDING)
-
+        # 2. Initialize the run tracker
+        run = self.pipe_run_repo.create_run(pipeline_id=pipeline.id, status=PipelineStatus.PENDING)
+        
+        # Ensure run.started_at is set (if your repo doesn't do it, set it here: run.started_at = datetime.now())
         run.status = PipelineStatus.RUNNING
         self.pipe_run_repo.update_run(run)
-
-        self.pipe_repo.update_pipeline_status(pipeline.id,PipelineStatus.RUNNING)
+        self.pipe_repo.update_pipeline_status(pipeline.id, PipelineStatus.RUNNING)
         
+        # Trackers for the final state
+        pipeline_final_status = PipelineStatus.FAILED
+        error_summary = "Unknown execution error"
+        
+        # Placeholders to prevent local scoping variable errors
+        output_data = {}
+
         try:
             pipe_data = self.pipe_data_repo.get_by_Pipe_id(pipe_id=pipe_id)
-            
             data_source = self.datasource_repo.get_by_id(pipe_data.datasource_id)
-         
-            if DataSourceType.CSV == data_source.source_type:
+        
+            if data_source.source_type == DataSourceType.CSV:
                 ingestor = CsvIngestion(data_source.location)
                 ingestion_result = ingestor.ingest()
+                
+                validator = DataValidator()
                 expected_schema = {
                     "first_name": "str",
                     "last_name": "str",
                     "location": "str",
                     "salary": "int64"
                 }
+                schema_validation = validator.check_schema(ingestion_result.dataframe, expected_schema)
 
-                validator = DataValidator()
+                if not schema_validation["valid"]:
+                    # Print it to the console as requested earlier
+                    print("--- SCHEMA VALIDATION FAILED ---")
+                    print(schema_validation)
+                    
+                    error_summary = f"Schema validation failed: {schema_validation}"
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail={"error": schema_validation}
+                    )
 
                 before_missing_values = validator.check_missing_values(ingestion_result.dataframe)
                 before_duplicate_rows = validator.check_duplicates(ingestion_result.dataframe)
-                schema_validation = validator.check_schema(ingestion_result.dataframe, expected_schema)
 
                 before = len(ingestion_result.dataframe)
                 transform = DataTransformation()
@@ -76,45 +95,59 @@ class PipelineExecutionService:
                 parquet_storage = ParquetStorage()
                 output_path = f"d:/data/processed/pipeline_{pipeline.id}/run_{run.id}.parquet"
                 parquet_storage.save(transformed_data, output_path)
-            
-            finished_at = datetime.now()
-            run.status= PipelineStatus.SUCCESS
-            run.finished_at = finished_at
-            run.duration = (finished_at - run.started_at).total_seconds()
-            run.error_message = None
-            self.pipe_run_repo.update_run(run)
-
-            self.pipe_repo.update_pipeline_status(pipeline.id,PipelineStatus.SUCCESS)
-
-            print(f"Pipeline {pipeline.id} executed successfully")
-            return {
+                
+                # Map values out for return statement
+                output_data = {
                     "row_count": ingestion_result.row_count,
                     "column_name": ingestion_result.column_name,
                     "dtypes": ingestion_result.dtypes,
-                    "schema_validation": schema_validation,
-                    "missing_values":before_missing_values,
-                    "duplicate_rows":before_duplicate_rows,
-                    "rows_before_transformation":before,
+                    "missing_values": before_missing_values,
+                    "duplicate_rows": before_duplicate_rows,
+                    "rows_before_transformation": before,
                     "rows_after_transformation": after,
                     "rows_removed": rows_removed,
-                    "missing_values_after":after_missing_values,
-                    "duplicate_rows_after":after_duplicate_rows,
+                    "missing_values_after": after_missing_values,
+                    "duplicate_rows_after": after_duplicate_rows,
                     "output_path": output_path
                 }
-        except HTTPException as htx:
-            raise htx
-        except Exception as e:
-            finished_at = datetime.now()
             
-            run.status= PipelineStatus.FAILED
-            run.finished_at = finished_at
-            run.duration = (finished_at - run.started_at).total_seconds()
-            run.error_message = str(e)
-            self.pipe_run_repo.update_run(run)
+            # If execution reaches this point cleanly, flip trackers to SUCCESS
+            pipeline_final_status = PipelineStatus.SUCCESS
+            error_summary = None
+            print(f"Pipeline {pipeline.id} executed successfully")
+            return output_data
 
-            self.pipe_repo.update_pipeline_status(pipeline.id,PipelineStatus.FAILED)
+        except HTTPException as htx:
+            # If it's a validation HTTPException, extract detail string/dict for the DB logs
+            error_summary = str(htx.detail)
+            raise htx
+            
+        except Exception as e:
+            error_summary = f"Internal ingestion crash: {str(e)}"
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=error_summary
+            )
+            
+        finally:
+            # 🛑 THIS ALWAYS RUNS SAFELY FOR SUCCESS & FAILURE 🛑
+            try:
+                finished_at = datetime.now()
+                run.status = pipeline_final_status
+                run.finished_at = finished_at
+                
+                # Calculate duration safely assuming run.started_at exists
+                if hasattr(run, 'started_at') and run.started_at:
+                    run.duration = (finished_at - run.started_at).total_seconds()
+                
+                run.error_message = error_summary
+                
+                # Save the true status (SUCCESS or FAILED) to the DB
+                self.pipe_run_repo.update_run(run)
+                self.pipe_repo.update_pipeline_status(pipeline.id, pipeline_final_status)
+            except Exception as db_err:
+                print(f"Critial Failure writing final status metrics to DB: {db_err}")
 
-            raise HTTPException(status_code=500,detail=f"Internal ingestion crash:{str(e)}")
 
     def get_run(self,run_id:int):
         run = self.pipe_run_repo.get_run_by_id(run_id)

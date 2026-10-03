@@ -2,7 +2,7 @@ from fastapi import APIRouter,Depends
 
 from app.schemas.PipelinesDto import PipelineCreate,PipelineResponse,PipelineUpdate
 from app.schemas.PipelineRunDto import PipelineRunResponse
-from app.schemas.ingestionDto import IngestionResponse
+from app.schemas.ingestionDto import IngestionResponse,IngestionErrorResponse
 
 from app.services.pipelines_services import PipelineService
 from app.services.pipelineRun_services import PipelineExecutionService
@@ -15,7 +15,7 @@ from app.repositories.dataSource_repo import DataSourceRepo
 from app.db.db import get_db
 
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List,Union
 
 Pipeline_Router = APIRouter()
 
@@ -85,8 +85,8 @@ def Pipeline_delete(id:int,service: PipelineService = Depends(get_pipeline_servi
 
 ### these are the apis to runs the pipelines
 
-#this is to make the run 
-@Pipeline_Router.post("/pipelines/{pipeline_id}/run",response_model=IngestionResponse)
+#this is to make the pipeline run 
+@Pipeline_Router.post("/pipelines/{pipeline_id}/run",response_model=Union[IngestionResponse,IngestionErrorResponse])
 def Create_Pipeline_Run(pipeline_id:int,service:PipelineExecutionService = Depends(get_pipeline_execution_service)):
     return service.run_pipeline(pipeline_id)
 
