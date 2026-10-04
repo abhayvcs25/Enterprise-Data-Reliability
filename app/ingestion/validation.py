@@ -1,21 +1,46 @@
 import pandas as pd
-
+from app.quality.quality_result import QualityCheckResult
 
 class DataValidator:
 
-    def check_missing_values(self, data: pd.DataFrame) -> dict:
+    def check_missing_values(self, data: pd.DataFrame) -> QualityCheckResult:
         """Return the number of missing values in each column."""
-        return data.isnull().sum().to_dict()
+        missing= data.isnull().sum().to_dict()
 
-    def check_duplicates(self, data: pd.DataFrame) -> int:
+        total_missing = sum(missing.values())
+
+        return QualityCheckResult(
+            name= "NULL_check",
+            passed= total_missing ==0,
+            rows_affected= total_missing,
+            metric=missing,
+            message=(
+                "no null value found"
+                if total_missing == 0
+                else f"Found {total_missing} null values"
+                ),
+        )
+
+    def check_duplicates(self, data: pd.DataFrame) -> QualityCheckResult:
         """Return the number of duplicate rows."""
-        return int(data.duplicated().sum())
+        duplicates =  int(data.duplicated().sum())
+        return QualityCheckResult(
+            name="duplicate_Check",
+            passed= duplicates == 0,
+            rows_affected= duplicates,
+            metric=duplicates,
+            message=(
+                "no duplicate values"
+                if duplicates == 0
+                else f"Found {duplicates} duplicate values"
+            )
+        )
 
     def check_schema(
         self,
         data: pd.DataFrame,
         expected_schema: dict[str, str]
-    ) -> dict:
+    ) -> QualityCheckResult:
         """Validate DataFrame columns and data types."""
 
         actual_schema = self._get_actual_schema(data)
@@ -40,13 +65,19 @@ class DataValidator:
             and not unexpected_columns
             and not type_mismatches
         )
+        schema_issues = { "missing_columns": missing_columns, "unexpected_columns": unexpected_columns, "type_mismatches": type_mismatches, }
 
-        return {
-            "valid": valid,
-            "missing_columns": missing_columns,
-            "unexpected_columns": unexpected_columns,
-            "type_mismatches": type_mismatches
-        }
+        return QualityCheckResult(
+            name="schema_check",
+            passed=valid,
+            rows_affected=None,
+            metric=schema_issues,
+            message=(
+                "Schema validation passed"
+                if valid
+                else "Schema validation failed"
+            )
+        )
 
     def _get_actual_schema(self, data: pd.DataFrame) -> dict:
         """Return the actual DataFrame schema."""

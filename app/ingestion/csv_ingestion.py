@@ -1,6 +1,6 @@
 import pandas as pd
 import os
-from app.ingestion.ingestion_result import IngestionResults
+from app.quality.ingestion_result import IngestionResults
 
 class CsvIngestion:
     def __init__(self,file_path:str):

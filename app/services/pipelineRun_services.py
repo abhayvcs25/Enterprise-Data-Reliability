@@ -12,6 +12,8 @@ from app.storage.parquet_storage import ParquetStorage
 from app.models.pipelines import PipelineStatus
 from app.models.data_source import DataSourceType
 
+from app.quality.quality_result import QualityCheckResult
+
 from fastapi import HTTPException,status
 from datetime import datetime
 
@@ -69,7 +71,7 @@ class PipelineExecutionService:
                 }
                 schema_validation = validator.check_schema(ingestion_result.dataframe, expected_schema)
 
-                if not schema_validation["valid"]:
+                if not schema_validation.passed:
                     # Print it to the console as requested earlier
                     print("--- SCHEMA VALIDATION FAILED ---")
                     print(schema_validation)
@@ -101,13 +103,13 @@ class PipelineExecutionService:
                     "row_count": ingestion_result.row_count,
                     "column_name": ingestion_result.column_name,
                     "dtypes": ingestion_result.dtypes,
-                    "missing_values": before_missing_values,
-                    "duplicate_rows": before_duplicate_rows,
+                    "missing_values": before_missing_values.metric,
+                    "duplicate_rows": before_duplicate_rows.metric,
                     "rows_before_transformation": before,
                     "rows_after_transformation": after,
                     "rows_removed": rows_removed,
-                    "missing_values_after": after_missing_values,
-                    "duplicate_rows_after": after_duplicate_rows,
+                    "missing_values_after": after_missing_values.metric,
+                    "duplicate_rows_after": after_duplicate_rows.metric,
                     "output_path": output_path
                 }
             
