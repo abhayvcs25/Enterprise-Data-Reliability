@@ -3,16 +3,10 @@ from app.repositories.pipeline_repo import PipelineRepository
 from app.repositories.dataSource_repo import DataSourceRepo
 from app.repositories.pipe_data_repo import PipeDataRepo
 
-from app.ingestion.csv_ingestion import CsvIngestion
-from app.ingestion.transformations import DataTransformation
-from app.ingestion.validation import DataValidator
-
-from app.storage.parquet_storage import ParquetStorage
-
 from app.models.pipelines import PipelineStatus
 from app.models.data_source import DataSourceType
 
-from app.quality.quality_result import QualityCheckResult
+from app.quality.quality_engine import QualityEngine
 
 from fastapi import HTTPException,status
 from datetime import datetime
@@ -50,6 +44,7 @@ class PipelineExecutionService:
         # Trackers for the final state
         pipeline_final_status = PipelineStatus.FAILED
         error_summary = "Unknown execution error"
+        print(pipeline_final_status)
         
         # Placeholders to prevent local scoping variable errors
         output_data = {}
@@ -57,74 +52,11 @@ class PipelineExecutionService:
         try:
             pipe_data = self.pipe_data_repo.get_by_Pipe_id(pipe_id=pipe_id)
             data_source = self.datasource_repo.get_by_id(pipe_data.datasource_id)
+
+            engine = QualityEngine(file_path=data_source.location,pipe_id=pipeline.id,run_id=run.id)
         
             if data_source.source_type == DataSourceType.CSV:
-                ingestor = CsvIngestion(data_source.location)
-                ingestion_result = ingestor.ingest()
-                
-                validator = DataValidator()
-                expected_schema = {
-                    "first_name": "str",
-                    "last_name": "str",
-                    "location": "str",
-                    "salary": "int64"
-                }
-                schema_validation = validator.check_schema(ingestion_result.dataframe, expected_schema)
-                if not schema_validation.passed:
-                    # Print it to the console as requested earlier                    
-                    error_summary = f"Schema validation failed: {schema_validation}"
-                    raise HTTPException(
-                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                        detail={"error": schema_validation.model_dump()}
-                    )
-                
-                range_validation = validator.check_range(data=ingestion_result.dataframe,column="salary",min_value=1000,max_value=1800000)
-                if not range_validation.passed:
-                    error_summary = f"Range validation failed: {range_validation}"
-                    raise HTTPException(
-                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                        detail={"error": range_validation.model_dump()}
-                    )
-
-                rows_validation = validator.count_rows(data=ingestion_result.dataframe,min_rows=10,max_rows=100)
-                if not rows_validation.passed:
-                    error_summary = f"Range validation failed: {range_validation}"
-                    raise HTTPException(
-                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                        detail={"error": rows_validation.model_dump()}
-                    )
-
-                before_missing_values = validator.check_missing_values(ingestion_result.dataframe)
-                before_duplicate_rows = validator.check_duplicates(ingestion_result.dataframe)
-
-                before = len(ingestion_result.dataframe)
-                transform = DataTransformation()
-                transformed_data = transform.transform(ingestion_result.dataframe)
-                after = len(transformed_data)
-                rows_removed = before - after
-
-                after_missing_values = validator.check_missing_values(transformed_data)
-                after_duplicate_rows = validator.check_duplicates(transformed_data)
-
-                parquet_storage = ParquetStorage()
-                output_path = f"d:/data/processed/pipeline_{pipeline.id}/run_{run.id}.parquet"
-                parquet_storage.save(transformed_data, output_path)
-                
-                # Map values out for return statement
-                output_data = {
-                    "row_count": ingestion_result.row_count,
-                    "column_name": ingestion_result.column_name,
-                    "dtypes": ingestion_result.dtypes,
-                    "missing_values": before_missing_values.metric,
-                    "duplicate_rows": before_duplicate_rows.metric,
-                    "rows_before_transformation": before,
-                    "rows_after_transformation": after,
-                    "rows_removed": rows_removed,
-                    "missing_values_after": after_missing_values.metric,
-                    "duplicate_rows_after": after_duplicate_rows.metric,
-                    "output_path": output_path
-                }
-            
+                output_data = engine.CsvQualityEngine()
             # If execution reaches this point cleanly, flip trackers to SUCCESS
             pipeline_final_status = PipelineStatus.SUCCESS
             error_summary = None
@@ -133,7 +65,7 @@ class PipelineExecutionService:
 
         except HTTPException as htx:
             # If it's a validation HTTPException, extract detail string/dict for the DB logs
-            error_summary = str(htx.detail)
+            error_summary = htx.detail.get("error_summary")
             raise htx
             
         except Exception as e:

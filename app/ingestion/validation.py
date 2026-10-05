@@ -207,10 +207,12 @@ class DataValidator:
             ),
         )
 
-    def count_rows(self,data:pd.DataFrame,min_rows:int=None,max_rows:int=None)->QualityCheckResult:
+    def count_rows(self,data:pd.DataFrame,
+                   min_rows:int=None,
+                   max_rows:int=None)->QualityCheckResult:
         total_rows= len(data)
 
-        if min_rows is None and max_rows is None:
+        if min_rows is None or max_rows is None:
             return QualityCheckResult(
                 name="Rows_check",
                 passed=False,
