@@ -70,16 +70,28 @@ class PipelineExecutionService:
                     "salary": "int64"
                 }
                 schema_validation = validator.check_schema(ingestion_result.dataframe, expected_schema)
-
                 if not schema_validation.passed:
-                    # Print it to the console as requested earlier
-                    print("--- SCHEMA VALIDATION FAILED ---")
-                    print(schema_validation)
-                    
+                    # Print it to the console as requested earlier                    
                     error_summary = f"Schema validation failed: {schema_validation}"
                     raise HTTPException(
                         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                        detail={"error": schema_validation}
+                        detail={"error": schema_validation.model_dump()}
+                    )
+                
+                range_validation = validator.check_range(data=ingestion_result.dataframe,column="salary",min_value=1000,max_value=1800000)
+                if not range_validation.passed:
+                    error_summary = f"Range validation failed: {range_validation}"
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail={"error": range_validation.model_dump()}
+                    )
+
+                rows_validation = validator.count_rows(data=ingestion_result.dataframe,min_rows=10,max_rows=100)
+                if not rows_validation.passed:
+                    error_summary = f"Range validation failed: {range_validation}"
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail={"error": rows_validation.model_dump()}
                     )
 
                 before_missing_values = validator.check_missing_values(ingestion_result.dataframe)

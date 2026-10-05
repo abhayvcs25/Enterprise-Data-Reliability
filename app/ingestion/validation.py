@@ -124,3 +124,120 @@ class DataValidator:
                 and actual_schema[column] != expected_schema[column]
             )
         }
+
+    def check_range(self,
+                    data:pd.DataFrame,
+                    column:str,
+                    min_value:int=None,
+                    max_value:int = None,
+                    min_inclusive:bool=True,
+                    max_inclusive:bool=True)->QualityCheckResult:
+        if column not in data.columns:
+            return QualityCheckResult(
+                name="Range_check",
+                passed=False,
+                rows_affected=0,
+                metric={
+                    "column":column,
+                    "rule":"column does not exist"
+                },
+                message=f"'{column}' does not exits"
+            )
+
+        if not pd.api.types.is_numeric_dtype(data[column]):
+            return QualityCheckResult(
+                name="Range_check",
+                passed=False,
+                rows_affected=0,
+                metric={
+                    "column":column,
+                    "rule":"numeric column required"
+                },
+                message=f"'{column}' must be numeric dtype for validation"
+            )
+
+        if min_value is None and max_value is None:
+            return QualityCheckResult(
+                name="Range_check",
+                passed=False,
+                rows_affected=0,
+                metric={
+                    "column":column,
+                    "rule":"min and max required"
+                },
+                message="At least one of min_value or max_value must be provided"
+            )
+
+        value = data[column]
+
+        invalid_mask=pd.Series(False,index=data.index)
+        rules_part=[]
+        if min_inclusive is not None:
+            if min_inclusive:
+                invalid_mask |=value < min_value
+                rules_part.append(f"{column}>{min_value}")
+            else:
+                invalid_mask |= value <= min_value
+                rules_part.append(f"{column}>={min_value}")
+
+        if max_inclusive is not None:
+            if max_inclusive:
+                invalid_mask |=value > max_value
+                rules_part.append(f"{column}<{max_value}")
+            else:
+                invalid_mask |= value<= min_value
+                rules_part.append(f"{column}<={max_value}")
+
+        affected_rows= int(invalid_mask.sum())
+        rule = " and ".join(rules_part)
+
+        return QualityCheckResult(
+            name="range_check",
+            passed=affected_rows == 0,
+            rows_affected=affected_rows,
+            metric={
+                "column": column,
+                "rule": rule,
+                "violations": affected_rows,
+            },
+            message=(
+                f"All values in '{column}' satisfy the rule: {rule}"
+                if affected_rows == 0
+                else f"Found {affected_rows} rows violating the rule: {rule}"
+            ),
+        )
+
+    def count_rows(self,data:pd.DataFrame,min_rows:int=None,max_rows:int=None)->QualityCheckResult:
+        total_rows= len(data)
+
+        if min_rows is None and max_rows is None:
+            return QualityCheckResult(
+                name="Rows_check",
+                passed=False,
+                rows_affected=0,
+                metric={
+                    "message":"min and max rows validation Failed"
+                },
+                message="min/max rows can't be None"
+            )
+
+        if min_rows>total_rows or total_rows>max_rows:
+            return QualityCheckResult(
+                name="Rows_check",
+                passed=False,
+                rows_affected=0,
+                metric={
+                    "message":"min and max rows validation Failed"
+                },
+                message="length of the data is < || > the min/max value"
+            )
+
+        return QualityCheckResult(
+            name="Rows_check",
+            passed=True,
+            rows_affected=0,
+            metric={
+                "message":"min and max rows validation Passed"
+            },
+            message="length of the data is with in the range of min/max value"
+        )
