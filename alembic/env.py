@@ -9,7 +9,8 @@ from app.models.employee import EmployeeModel
 from app.models.pipelines import PipelinesModel
 from app.models.pipelinerun import PipelineRunModel
 from app.models.data_source import DataSourceType,DataSourceModel
-from app.models.pipe_dataSource_M_M_relation import Pipline_DataSource_Model
+from app.models.pipe_dataSource_M_M_relation import PipelineDataSourceModel
+from app.models.data_quality_result import DataQualityResultModel
 
 from alembic import context
 

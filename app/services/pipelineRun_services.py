@@ -42,12 +42,9 @@ class PipelineExecutionService:
         self.pipe_repo.update_pipeline_status(pipeline.id, PipelineStatus.RUNNING)
         
         # Trackers for the final state
-        pipeline_final_status = PipelineStatus.FAILED
-        error_summary = "Unknown execution error"
-        print(pipeline_final_status)
         
-        # Placeholders to prevent local scoping variable errors
-        output_data = {}
+        error_summary = "Unknown execution error"
+        
 
         try:
             pipe_data = self.pipe_data_repo.get_by_Pipe_id(pipe_id=pipe_id)
@@ -57,15 +54,22 @@ class PipelineExecutionService:
         
             if data_source.source_type == DataSourceType.CSV:
                 output_data = engine.CsvQualityEngine()
-            # If execution reaches this point cleanly, flip trackers to SUCCESS
-            pipeline_final_status = PipelineStatus.SUCCESS
-            error_summary = None
-            print(f"Pipeline {pipeline.id} executed successfully")
+
+            if output_data.overall_status == "PASS":
+                pipeline_final_status = PipelineStatus.SUCCESS
+                error_summary = None
+                print(f"Pipeline {pipeline.id} executed successfully")
+            else:
+                pipeline_final_status = PipelineStatus.FAILED
+                error_summary = f"there where {output_data.failed_checks} checks failed and the score was {output_data.quality_score}"
+                raise HTTPException(
+                                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                                detail=output_data.model_dump()
+                            )
+            
             return output_data
 
         except HTTPException as htx:
-            # If it's a validation HTTPException, extract detail string/dict for the DB logs
-            error_summary = htx.detail.get("error_summary")
             raise htx
             
         except Exception as e:

@@ -59,3 +59,9 @@ class PipelineRunModel(Base):
         "PipelinesModel",
         back_populates="runs"
     )
+
+    quality_results = relationship(
+        "DataQualityResultModel",
+        back_populates="pipeline_run",
+        cascade="all, delete-orphan"
+    )
