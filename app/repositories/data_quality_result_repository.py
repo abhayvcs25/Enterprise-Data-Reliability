@@ -27,7 +27,7 @@ class DataQualityResultRepo:
         return db_results
 
     
-    def get_by_Pipe_id(self,pipeline_run_id: int) -> list[DataQualityResultModel]:
+    def get_by_pipeline_run_id(self,pipeline_run_id: int) -> list[DataQualityResultModel]:
         return (self.db.query(DataQualityResultModel)
             .filter(DataQualityResultModel.pipeline_run_id == pipeline_run_id).all()
         )

@@ -9,3 +9,6 @@ class DataQualityResultService:
             quality_results=quality_results,
             pipeline_run_id=pipe_run_id            
         )
+
+    def get_dataqualityresults_by_run_id(self,pipe_run_id:int):
+        return self.data_quality_repo.get_by_pipeline_run_id(pipeline_run_id=pipe_run_id)

@@ -3,9 +3,11 @@ from fastapi import APIRouter,Depends
 from app.schemas.PipelinesDto import PipelineCreate,PipelineResponse,PipelineUpdate
 from app.schemas.PipelineRunDto import PipelineRunResponse
 from app.schemas.ingestionDto import IngestionResponse,IngestionErrorResponse
+from app.schemas.data_quality_resultsDto import DataQualityResultsResponse
 
 from app.services.pipelines_services import PipelineService
 from app.services.pipelineRun_services import PipelineExecutionService
+from app.services.dataqualityresult import DataQualityResultService
 
 from app.repositories.pipeline_repo import PipelineRepository
 from app.repositories.pipelineRun_repo import PipelineRunRepositroy
@@ -56,6 +58,11 @@ def get_pipeline_execution_service(
         pipe_data_repo,
         data_quality_repo
     )
+
+
+def get_data_quality_result_service(db:Session=Depends(get_db))-> DataQualityResultService:
+    data_quality_repo = DataQualityResultRepo(db=db)
+    return DataQualityResultService(data_quality_repo=data_quality_repo)
 
 ##these are the apis to CURD oprations for piplines
 
@@ -108,8 +115,11 @@ def Get_runs_byid(run_id:int,service: PipelineExecutionService = Depends(get_pip
 def get_runs(service:PipelineExecutionService = Depends(get_pipeline_execution_service)):
     return service.get_all_run()
 
-
-
 # POST /api/v1/pipelines/{pipeline_id}/run
 # GET  /api/v1/pipelines/{pipeline_id}/runs
 # GET  /api/v1/pipeline-runs/{run_id}
+
+#this return data Quality Results of a pipe_run_id
+@Pipeline_Router.get("/pipeline-run-DQR/{pipe_run_id}",response_model=List[DataQualityResultsResponse])
+def get(pipe_run_id:int,service:DataQualityResultService = Depends(get_data_quality_result_service)):
+    return service.get_dataqualityresults_by_run_id(pipe_run_id=pipe_run_id)

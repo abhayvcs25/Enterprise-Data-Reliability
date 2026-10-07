@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from typing import Any
 
 class IngestionResponse(BaseModel):
-
+    pipe_run_id:int
     metric: Any = None
 
     total_checks: int

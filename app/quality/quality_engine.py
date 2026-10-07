@@ -97,6 +97,7 @@ class QualityEngine:
     
         
         return IngestionResponse(
+            pipe_run_id = self.run_id,
             metric=metrix,
 
             total_checks=total_checks,
