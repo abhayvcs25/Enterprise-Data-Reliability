@@ -11,6 +11,7 @@ from app.repositories.pipeline_repo import PipelineRepository
 from app.repositories.pipelineRun_repo import PipelineRunRepositroy
 from app.repositories.pipe_data_repo import PipeDataRepo
 from app.repositories.dataSource_repo import DataSourceRepo
+from app.repositories.data_quality_result_repository import DataQualityResultRepo
 
 from app.db.db import get_db
 
@@ -47,11 +48,13 @@ def get_pipeline_execution_service(
     pipeline_run_repository = PipelineRunRepositroy(db)
     datasource_repository = DataSourceRepo(db=db)
     pipe_data_repo = PipeDataRepo(db=db)
+    data_quality_repo = DataQualityResultRepo(db=db)
     return PipelineExecutionService(
         pipeline_repository,
         pipeline_run_repository,
         datasource_repository,
-        pipe_data_repo
+        pipe_data_repo,
+        data_quality_repo
     )
 
 ##these are the apis to CURD oprations for piplines

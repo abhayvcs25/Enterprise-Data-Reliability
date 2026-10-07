@@ -2,6 +2,7 @@ from app.repositories.pipelineRun_repo import PipelineRunRepositroy
 from app.repositories.pipeline_repo import PipelineRepository
 from app.repositories.dataSource_repo import DataSourceRepo
 from app.repositories.pipe_data_repo import PipeDataRepo
+from app.repositories.data_quality_result_repository import DataQualityResultRepo
 
 from app.models.pipelines import PipelineStatus
 from app.models.data_source import DataSourceType
@@ -14,11 +15,12 @@ from datetime import datetime
 
 
 class PipelineExecutionService:
-    def __init__(self,pipe_repo:PipelineRepository,pipe_run_repo:PipelineRunRepositroy,datasource_repo:DataSourceRepo,pipe_data_repo:PipeDataRepo):
+    def __init__(self,pipe_repo:PipelineRepository,pipe_run_repo:PipelineRunRepositroy,datasource_repo:DataSourceRepo,pipe_data_repo:PipeDataRepo,data_quality_repo:DataQualityResultRepo):
         self.pipe_repo = pipe_repo
         self.pipe_run_repo = pipe_run_repo
         self.datasource_repo = datasource_repo
         self.pipe_data_repo = pipe_data_repo
+        self.data_quality_repo=data_quality_repo
 
 
     def run_pipeline(self, pipe_id: int):
@@ -50,16 +52,21 @@ class PipelineExecutionService:
             pipe_data = self.pipe_data_repo.get_by_Pipe_id(pipe_id=pipe_id)
             data_source = self.datasource_repo.get_by_id(pipe_data.datasource_id)
 
-            engine = QualityEngine(file_path=data_source.location,pipe_id=pipeline.id,run_id=run.id)
+            engine = QualityEngine(file_path=data_source.location,pipe_id=pipeline.id,run_id=run.id,data_quality_repo=self.data_quality_repo)
         
             if data_source.source_type == DataSourceType.CSV:
-                output_data = engine.CsvQualityEngine()
+                try:
+                    output_data = engine.CsvQualityEngine()
+                except Exception as e:
+                    pipeline_final_status = PipelineStatus.FAILED
+                    raise e
 
             if output_data.overall_status == "PASS":
                 pipeline_final_status = PipelineStatus.SUCCESS
                 error_summary = None
-                print(f"Pipeline {pipeline.id} executed successfully")
+                print(f"++Pipeline {pipeline.id} executed successfully")
             else:
+                print(f"++Pipeline {pipeline.id} executed failed")
                 pipeline_final_status = PipelineStatus.FAILED
                 error_summary = f"there where {output_data.failed_checks} checks failed and the score was {output_data.quality_score}"
                 raise HTTPException(
@@ -74,6 +81,7 @@ class PipelineExecutionService:
             
         except Exception as e:
             error_summary = f"Internal ingestion crash: {str(e)}"
+            print(f"++Pipeline {pipeline.id} executed failed because of a execption :: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=error_summary

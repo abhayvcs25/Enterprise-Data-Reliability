@@ -2,16 +2,20 @@ from app.ingestion.csv_ingestion import CsvIngestion
 from app.ingestion.transformations import DataTransformation
 from app.ingestion.validation import DataValidator
 
-from fastapi import HTTPException,status
+from app.repositories.data_quality_result_repository import DataQualityResultRepo
+
+from app.services.dataqualityresult import DataQualityResultService
 
 from app.storage.parquet_storage import ParquetStorage
 
 from app.schemas.ingestionDto import IngestionResponse
+
 class QualityEngine:
-    def __init__(self,file_path:str,pipe_id:int,run_id:int)->IngestionResponse:
+    def __init__(self,file_path:str,pipe_id:int,run_id:int,data_quality_repo:DataQualityResultRepo)->IngestionResponse:
         self.file_path = file_path
         self.pipe_id = pipe_id
         self.run_id = run_id
+        self.data_quality_repo=data_quality_repo
 
     def CsvQualityEngine(self):
 
@@ -85,6 +89,12 @@ class QualityEngine:
         parquet_storage = ParquetStorage()
         output_path = f"d:/data/processed/pipeline_{self.pipe_id}/run_{self.run_id}.parquet"
         parquet_storage.save(transformed_data, output_path)
+
+        data_quality_service = DataQualityResultService(data_quality_repo=self.data_quality_repo)
+        results = data_quality_service.create_many(quality_result,pipe_run_id=self.run_id)
+        if results is not None:
+            print("++data quality results inserted successfuly")
+    
         
         return IngestionResponse(
             metric=metrix,

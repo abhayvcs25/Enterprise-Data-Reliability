@@ -11,7 +11,7 @@ class DataQualityResultModel(Base):
     check_name = Column(String(100),nullable=False)
     passed = Column(Boolean,nullable=False)
     metric = Column(JSON,nullable=True)
-    rows_affected = Column(Integer,nullable=False)
+    rows_affected = Column(Integer,nullable=True)
     message = Column(Text,nullable=True)
     created_at= Column(DateTime,server_default=func.now(),nullable=False)
 
