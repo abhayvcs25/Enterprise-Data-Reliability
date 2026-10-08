@@ -13,7 +13,7 @@ class DataSourceRepo:
             description = data.description,
             source_type = data.source_type,
             location = data.location,
-            configuration = data.configuration
+            configuration = data.configuration.model_dump()
         )
 
         self.db.add(new_data)
