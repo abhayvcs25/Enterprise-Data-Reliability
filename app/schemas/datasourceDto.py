@@ -28,6 +28,8 @@ class DuplicateRule(BaseModel):
 class RangeValue(BaseModel):
     min: int | float | None = None
     max: int | float | None = None
+    min_inclusive : bool = True
+    max_inclusive : bool = True
 
 
 class RangeRule(BaseModel):

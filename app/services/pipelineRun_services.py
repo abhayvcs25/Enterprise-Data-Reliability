@@ -52,7 +52,7 @@ class PipelineExecutionService:
             pipe_data = self.pipe_data_repo.get_by_Pipe_id(pipe_id=pipe_id)
             data_source = self.datasource_repo.get_by_id(pipe_data.datasource_id)
 
-            engine = QualityEngine(file_path=data_source.location,pipe_id=pipeline.id,run_id=run.id,data_quality_repo=self.data_quality_repo)
+            engine = QualityEngine(file_path=data_source.location,pipe_id=pipeline.id,run_id=run.id,data_quality_repo=self.data_quality_repo,configuration=data_source.configuration)
         
             if data_source.source_type == DataSourceType.CSV:
                 try:

@@ -11,11 +11,23 @@ from app.storage.parquet_storage import ParquetStorage
 from app.schemas.ingestionDto import IngestionResponse
 
 class QualityEngine:
-    def __init__(self,file_path:str,pipe_id:int,run_id:int,data_quality_repo:DataQualityResultRepo)->IngestionResponse:
+    def __init__(self,file_path:str,pipe_id:int,run_id:int,data_quality_repo:DataQualityResultRepo,configuration: dict | None = None)->IngestionResponse:
         self.file_path = file_path
         self.pipe_id = pipe_id
         self.run_id = run_id
         self.data_quality_repo=data_quality_repo
+        self.configuration =configuration or {} 
+
+    def _get_data_quality_rules(self) -> dict:
+        data_quality = self.configuration.get("data_quality")
+
+        if data_quality is None:
+            return {}
+
+        if not data_quality.get("enabled", False):
+            return {}
+
+        return data_quality.get("rules", {})
 
     def CsvQualityEngine(self):
 
@@ -28,59 +40,133 @@ class QualityEngine:
 
 
         #schema validation
+        rules = self._get_data_quality_rules()
+
+        quality_result = []
+
         validator = DataValidator()
-        expected_schema = {
-            "first_name": "str",
-            "last_name": "str",
-            "location": "str",
-            "salary": "int64"
-        }
-        schema_validation = validator.check_schema(ingestion_result.dataframe, expected_schema)
-        quality_result.append(schema_validation)
-        
 
-        #null check
-        null_validation = validator.check_missing_values(ingestion_result.dataframe)
-        quality_result.append(null_validation)
+        schema_validation = None
+        null_validation = None
+        duplicate_validation = None
+        range_validation = None
+        rows_validation = None
 
-        #duplicate check
-        duplicate_validation = validator.check_duplicates(ingestion_result.dataframe)
-        quality_result.append(duplicate_validation)
 
-        #range check like min/max value of a given column within a dataframe
-        range_validation = validator.check_range(data=ingestion_result.dataframe,column="salary",min_value=1000,max_value=1800000)
-        quality_result.append(range_validation)
+        # -------------------------
+        # Schema check
+        # -------------------------
 
-        #rows check like min/max rows with in a dataframe
-        rows_validation = validator.count_rows(data=ingestion_result.dataframe,min_rows=10,max_rows=100)
-        quality_result.append(rows_validation)
+        schema_config = rules.get("schema")
+
+        if schema_config and schema_config.get("enabled", False):
+            expected_schema = schema_config.get("columns", {})
+
+            schema_validation = validator.check_schema(
+                ingestion_result.dataframe,
+                expected_schema
+            )
+
+            quality_result.append(schema_validation)
+
+
+        # -------------------------
+        # Null check
+        # -------------------------
+
+        null_config = rules.get("null_check")
+
+        if null_config and null_config.get("enabled", False):
+
+            null_validation = validator.check_missing_values(
+                ingestion_result.dataframe
+            )
+
+            quality_result.append(null_validation)
+
+
+        # -------------------------
+        # Duplicate check
+        # -------------------------
+
+        duplicate_config = rules.get("duplicate_check")
+
+        if duplicate_config and duplicate_config.get("enabled", False):
+
+            duplicate_validation = validator.check_duplicates(
+                ingestion_result.dataframe
+            )
+
+            quality_result.append(duplicate_validation)
+
+
+        # -------------------------
+        # Range check
+        # -------------------------
+
+        range_config = rules.get("range_check")
+
+        if range_config and range_config.get("enabled", False):
+
+            range_columns = range_config.get("columns", {})
+
+            for column, config in range_columns.items():
+
+                range_validation = validator.check_range(
+                    data=ingestion_result.dataframe,
+                    column=column,
+                    min_value=config.get("min"),
+                    max_value=config.get("max"),
+                    min_inclusive=config.get("min_inclusive", True),
+                    max_inclusive=config.get("max_inclusive", True)
+                )
+
+                quality_result.append(range_validation)
+
+
+        # -------------------------
+        # Row count check
+        # -------------------------
+
+        row_count_config = rules.get("row_count")
+
+        if row_count_config and row_count_config.get("enabled", False):
+
+            rows_validation = validator.count_rows(
+                data=ingestion_result.dataframe,
+                min_rows=row_count_config.get("min"),
+                max_rows=row_count_config.get("max")
+            )
+
+            quality_result.append(rows_validation)
+
 
         #calculation of the results
         total_checks = len(quality_result)
 
-        passed_checks = sum(1 for result in quality_result
-                            if result.passed)
+        passed_checks = sum(
+            1 for result in quality_result
+            if result.passed
+        )
 
-        failed_checks = total_checks-passed_checks
+        failed_checks = total_checks - passed_checks
 
         if total_checks > 0:
             quality_score = (passed_checks / total_checks) * 100
         else:
-            quality_score = 0
+            quality_score = 100
 
-        if schema_validation.passed and rows_validation.passed and range_validation.passed and total_checks > 0:
-            overall_status = "PASS"
-        else:
-            overall_status = "FAIL"
+        overall_status = (
+            "PASS"
+            if total_checks > 0 and failed_checks == 0
+            else "FAIL"
+        )
 
         #getting the metrics of the null and dup
-        metrix = {null_validation.name : null_validation.metric,
-                duplicate_validation.name : duplicate_validation.message,
-                schema_validation.name:schema_validation.metric,
-                rows_validation.name : rows_validation.metric,
-                range_validation.name:range_validation.metric
-                }
-
+        metrix={
+            result.check_name: result.metric
+            for result in quality_result
+        }
         #modifing the dataframe
         transform = DataTransformation()
         transformed_data = transform.transform(ingestion_result.dataframe)
