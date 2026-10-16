@@ -56,8 +56,7 @@ class QualityEngine:
         # -------------------------
         # Schema check
         # -------------------------
-
-        schema_config = rules.get("schema")
+        schema_config = rules.get("schema_rule")
 
         if schema_config and schema_config.get("enabled", False):
             expected_schema = schema_config.get("columns", {})
@@ -142,56 +141,86 @@ class QualityEngine:
 
 
         #calculation of the results
+                # Calculate quality results
         total_checks = len(quality_result)
 
         passed_checks = sum(
-            1 for result in quality_result
-            if result.passed
+            1 for result in quality_result if result.passed
         )
 
         failed_checks = total_checks - passed_checks
 
-        if total_checks > 0:
-            quality_score = (passed_checks / total_checks) * 100
-        else:
-            quality_score = 100
-
-        overall_status = (
-            "PASS"
-            if total_checks > 0 and failed_checks == 0
-            else "FAIL"
+        quality_score = (
+            (passed_checks / total_checks) * 100
+            if total_checks > 0
+            else 100
         )
 
-        #getting the metrics of the null and dup
-        metrix={
-            result.check_name: result.metric
-            for result in quality_result
-        }
-        #modifing the dataframe
-        transform = DataTransformation()
-        transformed_data = transform.transform(ingestion_result.dataframe)
+        overall_status = "FAIL" if failed_checks > 0 else "PASS"
 
-        #storing the transformed dataframe
+        # Preserve results for every range-checked column
+        metrix = {}
+
+        for result in quality_result:
+            metric_key = result.name
+
+            if (
+                isinstance(result.metric, dict)
+                and result.metric.get("column") is not None
+            ):
+                metric_key = f"{result.name}_{result.metric['column']}"
+
+            metrix[metric_key] = result.metric
+
+        # Persist quality results ONCE, including failures
+        data_quality_service = DataQualityResultService(
+            data_quality_repo=self.data_quality_repo
+        )
+
+        if quality_result:
+            data_quality_service.create_many(
+                quality_result,
+                pipe_run_id=self.run_id
+            )
+
+            print("++ Data quality results stored in DB")
+
+        # Quality gate: do not transform data after a failed check
+        if failed_checks > 0:
+            return IngestionResponse(
+                pipe_run_id=self.run_id,
+                metric=metrix,
+                total_checks=total_checks,
+                passed_checks=passed_checks,
+                failed_checks=failed_checks,
+                quality_score=quality_score,
+                overall_status="FAIL",
+                output_path=None
+            )
+
+        # Transform only when all configured checks pass
+        transform = DataTransformation()
+        transformed_data = transform.transform(
+            ingestion_result.dataframe
+        )
+
+        # Store transformed data
         parquet_storage = ParquetStorage()
-        output_path = f"d:/data/processed/pipeline_{self.pipe_id}/run_{self.run_id}.parquet"
+
+        output_path = (
+            f"d:/data/processed/pipeline_{self.pipe_id}"
+            f"/run_{self.run_id}.parquet"
+        )
+
         parquet_storage.save(transformed_data, output_path)
 
-        data_quality_service = DataQualityResultService(data_quality_repo=self.data_quality_repo)
-        results = data_quality_service.create_many(quality_result,pipe_run_id=self.run_id)
-        if results is not None:
-            print("++data quality results inserted successfuly")
-    
-        
         return IngestionResponse(
-            pipe_run_id = self.run_id,
+            pipe_run_id=self.run_id,
             metric=metrix,
-
             total_checks=total_checks,
             passed_checks=passed_checks,
             failed_checks=failed_checks,
-
             quality_score=quality_score,
-            overall_status=overall_status,
-
+            overall_status="PASS",
             output_path=output_path
         )

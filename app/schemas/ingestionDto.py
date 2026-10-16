@@ -12,7 +12,7 @@ class IngestionResponse(BaseModel):
     quality_score: float
     overall_status: str
 
-    output_path: str
+    output_path: str | None = None
 
 
 class IngestionErrorResponse(BaseModel):
