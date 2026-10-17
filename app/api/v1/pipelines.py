@@ -1,12 +1,14 @@
-from fastapi import APIRouter,Depends
+from fastapi import APIRouter,Depends,Query
 
 from app.schemas.PipelinesDto import PipelineCreate,PipelineResponse,PipelineUpdate
 from app.schemas.PipelineRunDto import PipelineRunResponse
+from app.schemas.PipelineRunMetricsDto import PipelineRunMetricsResponse
 from app.schemas.ingestionDto import IngestionResponse,IngestionErrorResponse
 from app.schemas.data_quality_resultsDto import DataQualityResultsResponse
 
 from app.services.pipelines_services import PipelineService
 from app.services.pipelineRun_services import PipelineExecutionService
+from app.services.pipelineRun_metrics_service import PipelineRunMetricsService
 from app.services.dataqualityresult import DataQualityResultService
 
 from app.repositories.pipeline_repo import PipelineRepository
@@ -34,20 +36,6 @@ def get_pipeline_execution_service(
 
     pipeline_repository = PipelineRepository(db)
     pipeline_run_repository = PipelineRunRepositroy(db)
-
-    return PipelineExecutionService(
-        pipeline_repository,
-        pipeline_run_repository
-    )
-
-
-
-def get_pipeline_execution_service(
-    db: Session = Depends(get_db)
-) -> PipelineExecutionService:
-
-    pipeline_repository = PipelineRepository(db)
-    pipeline_run_repository = PipelineRunRepositroy(db)
     datasource_repository = DataSourceRepo(db=db)
     pipe_data_repo = PipeDataRepo(db=db)
     data_quality_repo = DataQualityResultRepo(db=db)
@@ -58,6 +46,12 @@ def get_pipeline_execution_service(
         pipe_data_repo,
         data_quality_repo
     )
+
+def get_pipeline_run_metrics_service(
+    db: Session = Depends(get_db)
+) -> PipelineRunMetricsService:
+    pipeline_run_repository = PipelineRunRepositroy(db)
+    return PipelineRunMetricsService(pipeline_run_repository)
 
 
 def get_data_quality_result_service(db:Session=Depends(get_db))-> DataQualityResultService:
@@ -102,8 +96,40 @@ def Create_Pipeline_Run(pipeline_id:int,service:PipelineExecutionService = Depen
 
 # this is to get runs of a list of pipeline id
 @Pipeline_Router.get("/pipelines/{pipeline_id}/runs",response_model=List[PipelineRunResponse])
-def Get_pipeline_runs(pipeline_id:int,service: PipelineExecutionService = Depends(get_pipeline_execution_service)):
-    return service.get_pipeline_runs(pipeline_id)
+def Get_pipeline_runs(
+    pipeline_id: int,
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    service: PipelineExecutionService = Depends(get_pipeline_execution_service),
+):
+    return service.get_pipeline_runs(pipeline_id, limit=limit, offset=offset)
+
+
+@Pipeline_Router.get(
+    "/pipelines/{pipeline_id}/runs/{run_id}",
+    response_model=PipelineRunResponse,
+)
+def Get_pipeline_run(
+    pipeline_id: int,
+    run_id: int,
+    service: PipelineExecutionService = Depends(get_pipeline_execution_service),
+):
+    return service.get_pipeline_run(pipeline_id, run_id)
+
+
+@Pipeline_Router.get(
+    "/pipelines/{pipeline_id}/metrics",
+    response_model=PipelineRunMetricsResponse,
+)
+def Get_pipeline_metrics(
+    pipeline_id: int,
+    pipeline_service: PipelineService = Depends(get_pipeline_service),
+    metrics_service: PipelineRunMetricsService = Depends(
+        get_pipeline_run_metrics_service
+    ),
+):
+    pipeline_service.get_pipeline_by_id(pipeline_id)
+    return metrics_service.get_pipeline_metrics(pipeline_id)
 
 # this is to get run a specific run
 @Pipeline_Router.get("/pipeline-runs/{run_id}",response_model=PipelineRunResponse)

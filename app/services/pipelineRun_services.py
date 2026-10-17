@@ -253,13 +253,28 @@ class PipelineExecutionService:
 
         return run
 
-    def get_pipeline_runs(self,pipe_id:int):
+    def get_pipeline_runs(self, pipe_id: int, limit: int = 50, offset: int = 0):
         pipeline = self.pipe_repo.get_by_id(pipe_id)
 
         if pipeline is None:
             raise HTTPException(status_code=404,detail="pipeline id not found")
 
-        return self.pipe_run_repo.get_runs_by_pipeline(pipeline.id)
+        return self.pipe_run_repo.get_runs_by_pipeline(
+            pipeline.id,
+            limit=limit,
+            offset=offset,
+        )
+
+    def get_pipeline_run(self, pipe_id: int, run_id: int):
+        pipeline = self.pipe_repo.get_by_id(pipe_id)
+        if pipeline is None:
+            raise HTTPException(status_code=404, detail="pipeline not found")
+
+        run = self.pipe_run_repo.get_run_by_id(run_id)
+        if run is None or run.pipeline_id != pipeline.id:
+            raise HTTPException(status_code=404, detail="run not found")
+
+        return run
 
     def get_all_run(self):
         return self.pipe_run_repo.get_all_runs()

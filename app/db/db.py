@@ -18,7 +18,6 @@ try:
     with engine.connect() as connection:
         connection.execute(text("SELECT 1"))
         logger.info("Database connected successfully")
-        print("✅ Database connected successfully")
 except Exception:
     logger.exception("Database connection check failed")
 

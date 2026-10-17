@@ -1,13 +1,35 @@
 # Enterprise Data Reliability & DataOps Platform
 
-##Overview
+This repository currently provides a FastAPI service for managing pipelines and
+executing CSV-based pipeline runs.
 
-The Enterprise Data Reliability & DataOps Platform is a production-oriented platform designed to monitor, validate, manage, and troubleshoot data pipelines.
+## Pipeline execution and run tracking
 
-Modern data systems depend on multiple pipelines that move and transform data between different sources and destinations. When a pipeline fails, produces incorrect data, becomes slow, or generates poor-quality data, it can affect downstream applications, analytics, dashboards, and machine learning systems.
+- `POST /api/v1/pipelines/{pipeline_id}/run` starts a run and records its
+  `PENDING`, `RUNNING`, and terminal status in `Pipeline_Runs`.
+- Run records reference their pipeline and include start, finish, duration, and
+  a sanitized error summary. Run-read API responses omit the stored error
+  summary.
+- Configured Data Quality checks run before transformation and storage.
+  Failed checks are persisted against the run that produced them and prevent
+  transformation/storage; execution failures and quality violations both
+  result in a failed run, while persisted check outcomes distinguish quality
+  violations.
+- Successful execution transforms the CSV data and writes Parquet output using
+  the existing storage component.
 
-This project aims to provide a centralized platform for understanding the health and reliability of data pipelines.
+## Run history and metrics
 
-The platform will allow users to monitor pipeline execution, track pipeline status, perform data quality checks, inspect failures, and collect reliability-related information that can help identify problems in data workflows.
+- `GET /api/v1/pipelines/{pipeline_id}/runs` returns newest-first run history;
+  `limit` defaults to 50 (maximum 100) and `offset` defaults to 0.
+- `GET /api/v1/pipelines/{pipeline_id}/runs/{run_id}` returns a run only when it
+  belongs to the requested pipeline.
+- `GET /api/v1/pipelines/{pipeline_id}/metrics` returns status counts,
+  completed success/failure rates, average valid completed-run duration, and
+  the most recent run and successful completion timestamps.
+- `GET /api/v1/pipeline-run-DQR/{pipe_run_id}` returns persisted quality-check
+  results for one run.
 
-The project is being developed as a practical Data Engineering, DataOps, and backend engineering system with a focus on production-style architecture.
+The run-history, individual-run, and metrics endpoints return HTTP 404 for a
+pipeline that does not exist. History pagination is validated, and history and
+individual-run lookups are scoped to the requested pipeline.
