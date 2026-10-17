@@ -2,18 +2,23 @@ import pandas as pd
 import os
 from app.quality.ingestion_result import IngestionResults
 
+
+class CsvInputError(ValueError):
+    pass
+
+
 class CsvIngestion:
     def __init__(self,file_path:str):
         self.file_path = file_path
 
     def ingest(self):
         if not os.path.isfile(self.file_path):
-            raise FileNotFoundError(f"CSV file not found : {self.file_path}")
+            raise FileNotFoundError("CSV input file was not found.")
         
         try:
             data_csv=pd.read_csv(self.file_path)
-        except Exception as e:
-            raise RuntimeError(f"Failed to read the file : {self.file_path}") from e
+        except (pd.errors.EmptyDataError, pd.errors.ParserError, UnicodeDecodeError) as e:
+            raise CsvInputError("CSV input is empty or malformed.") from e
 
         data=pd.DataFrame(data_csv)
 

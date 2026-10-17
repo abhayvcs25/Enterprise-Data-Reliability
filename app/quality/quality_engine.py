@@ -1,3 +1,4 @@
+import logging
 from app.ingestion.csv_ingestion import CsvIngestion
 from app.ingestion.transformations import DataTransformation
 from app.ingestion.validation import DataValidator
@@ -9,6 +10,10 @@ from app.services.dataqualityresult import DataQualityResultService
 from app.storage.parquet_storage import ParquetStorage
 
 from app.schemas.ingestionDto import IngestionResponse
+
+
+logger = logging.getLogger(__name__)
+
 
 class QualityEngine:
     def __init__(self,file_path:str,pipe_id:int,run_id:int,data_quality_repo:DataQualityResultRepo,configuration: dict | None = None)->IngestionResponse:
@@ -183,7 +188,11 @@ class QualityEngine:
                 pipe_run_id=self.run_id
             )
 
-            print("++ Data quality results stored in DB")
+            logger.info(
+                "Data Quality results stored for pipeline_id=%s run_id=%s",
+                self.pipe_id,
+                self.run_id,
+            )
 
         # Quality gate: do not transform data after a failed check
         if failed_checks > 0:

@@ -1,6 +1,11 @@
+import logging
 from sqlalchemy.orm import Session
 from app.models.pipelinerun import PipelineRunModel
 from app.schemas.PipelinesDto import PipelineStatus
+
+
+logger = logging.getLogger(__name__)
+
 
 class PipelineRunRepositroy:
     def __init__(self,db : Session):
@@ -13,8 +18,20 @@ class PipelineRunRepositroy:
         )
 
         self.db.add(run)
-        self.db.commit()
-        self.db.refresh(run)
+        try:
+            self.db.flush()
+            self.db.refresh(run)
+            self.db.commit()
+        except Exception:
+            try:
+                self.db.rollback()
+            except Exception:
+                logger.exception(
+                    "Rollback failed after pipeline run creation failed "
+                    "for pipeline_id=%s",
+                    pipeline_id,
+                )
+            raise
 
         return run
 
