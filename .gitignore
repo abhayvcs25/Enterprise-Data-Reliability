@@ -3,3 +3,7 @@ __pycache__/
 .env
 *.py[cod]
 commands.txt
+airflow/.env
+airflow/logs/
+airflow/config/
+airflow/plugins/
